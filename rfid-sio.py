@@ -1,30 +1,46 @@
-
+import json
 import socketio
 
 import sys
 print("Python version")
 print (sys.version)
 
-users = {
-    "0003210808": "user_01",
-    "0003225772": "user_02",
-    "0003234054": "user_03"    
-}
+f = open("passengers_data.json")
+users = json.load(f)
+f.close()
+
+f = open("system_settings.json")
+settings = json.load(f)
+f.close()
+
 
 sio = socketio.Client()
+
+@sio.event
+def connect():
+    print('connection established')
+
+@sio.event
+def my_message(data):
+    print('message received with ', data)
+    sio.emit('my response', {'response': 'my response'})
+
+@sio.event
+def disconnect():
+    print('disconnected from server')
 
 if __name__ == "__main__":
     
     # setup socket io client
-    sio.connect('http://localhost:3000')
+    sio.connect(f'http://{settings["server_ip"]}:3000')
     print("Connected to Ripple Server!")
 
     try:
         while True:
             value = input("Please swipe your card: ")
             print(f'Welcome onboard {users[value]} !!')
-            sio.emit("payment",users[value])
-
+            # sio.emit("updatepassengerbalance",{"id": users[value], "balance": 220})
+            
     except KeyboardInterrupt:
         pass
 
