@@ -39,7 +39,7 @@ if __name__ == "__main__":
         while True:
             value = input("Please swipe your card: ")
             print(f'Welcome onboard {users[value]} !!')
-            # sio.emit("updatepassengerbalance",{"id": users[value], "balance": 220})
+            sio.emit("updatepassengerbalance",{"id": users[value]["id"], "balance": users[value]["balance"]})
             
     except KeyboardInterrupt:
         pass
