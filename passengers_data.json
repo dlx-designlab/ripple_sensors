@@ -6,7 +6,7 @@
     },
     "0003225772": {
         "id":2,
-        "dest_stop_id": -1,
+        "dest_stop_id": null,
         "balance": 10400
     },
     "0003234054": {

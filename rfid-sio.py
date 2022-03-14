@@ -12,10 +12,13 @@ print (sys.version)
 
 # Window control
 # wins = Window.list()
+# print(wins)
 # names = [win.wm_name for win in wins]
 # print(names)
+
 # get the currenly active window data
-my_window = Window.get_active()
+# my_window = Window.get_active()
+my_window = Window.by_name("pi@raspberrypi: ~/projects/ripple_sensors")[0]
 print(my_window)
 
 f = open("passengers_data.json")
@@ -43,7 +46,7 @@ def disconnect():
 
 
 def keep_window_in_focus(selected_window, freq):
-    while True:
+    while selected_window:
         selected_window.activate()
         time.sleep(freq)
 
@@ -62,7 +65,7 @@ if __name__ == "__main__":
         while True:
             value = input("Please swipe your card: ")
             print(f'Welcome onboard {users[value]} !!')
-            sio.emit("updatepassengerbalance",{"id": users[value]["id"], "balance": users[value]["balance"]})
+            sio.emit("updatepassenger",{"id": users[value]["id"], "scanned": True, "destination": users[value]["dest_stop_id"]})
             
     except KeyboardInterrupt:
         pass
