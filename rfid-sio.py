@@ -1,9 +1,22 @@
+from curses import window
 import json
+import time
 import socketio
+import threading
+from wmctrl import Window, Desktop #requires: 'pip3 install attrs wmctrl'
+
 
 import sys
 print("Python version")
 print (sys.version)
+
+# Window control
+# wins = Window.list()
+# names = [win.wm_name for win in wins]
+# print(names)
+# get the currenly active window data
+my_window = Window.get_active()
+print(my_window)
 
 f = open("passengers_data.json")
 users = json.load(f)
@@ -12,7 +25,6 @@ f.close()
 f = open("system_settings.json")
 settings = json.load(f)
 f.close()
-
 
 sio = socketio.Client()
 
@@ -29,11 +41,22 @@ def my_message(data):
 def disconnect():
     print('disconnected from server')
 
+
+def keep_window_in_focus(selected_window, freq):
+    while True:
+        selected_window.activate()
+        time.sleep(freq)
+
+
 if __name__ == "__main__":
     
     # setup socket io client
     sio.connect(f'http://{settings["server_ip"]}:3000')
     print("Connected to Ripple Server!")
+    
+    # a thread to keep the script window in focus
+    keepInFocus = threading.Thread(target=keep_window_in_focus, args=(my_window, 5,))
+    keepInFocus.start()
 
     try:
         while True:
