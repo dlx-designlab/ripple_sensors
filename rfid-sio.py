@@ -3,7 +3,7 @@ import json
 import time
 import socketio
 import threading
-from wmctrl import Window, Desktop #requires: 'pip3 install attrs wmctrl'
+from wmctrl import Window #requires: 'pip3 install attrs wmctrl'
 
 
 import sys
@@ -17,8 +17,8 @@ print (sys.version)
 # print(names)
 
 # get the currenly active window data
-# my_window = Window.get_active()
-my_window = Window.by_name("pi@raspberrypi: ~/projects/ripple_sensors")[0]
+# my_window = Window.by_name("pi@raspberrypi: ~/projects/ripple_sensors")[0]
+my_window = Window.get_active()
 print(my_window)
 
 f = open("passengers_data.json")
