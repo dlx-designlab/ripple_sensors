@@ -163,7 +163,7 @@ def lidar_scanner():
                     user_angle = math.atan(np.polyfit(x_points, y_points, 1)[0])
                     # print(math.degrees(user_angle))
 
-                    sio.emit("updatepassengerposition",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
+                    sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
 
 
             # print(user_points)
