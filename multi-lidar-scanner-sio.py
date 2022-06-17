@@ -18,26 +18,26 @@ import cv2
 sensors_config = [
     {
         "port": "/dev/ttyUSB0",
-        "x": 580,
-        "y": -220,
+        "x": 670,
+        "y": -105,
         "a": 180
     },
     {  
         "port": "/dev/ttyUSB1",
-        "x": 1185,
-        "y": 700,
+        "x": 1355,
+        "y": 1020,
         "a": 0
     },
     {   
         "port": "/dev/ttyUSB2",
         "x": 0,
-        "y": 700,
+        "y": 1020,
         "a": 0
     }    
 ]
 
 # area of interes (actual screen/step-area size in mm) coordinates
-aoi_coordinates = ((0,0),(1180,660))
+aoi_coordinates = ((0,0),(1355,905))
 
 sio = socketio.Client()
 data_send_ferq = 0.2 #how often to send the data to the server (seconds)
@@ -47,10 +47,11 @@ data_send_ferq = 0.2 #how often to send the data to the server (seconds)
 # place an object at the bottom right corner of the screen
 # in the front-end click in the center of the detected object
 # devide the "X" coordinate by 100 and miltiply by the current scale 
-scale = 11.7
+# komaba setup scale - 11.7
+scale = 30
 
 # use this in combinaion with scale to show objects which would usually appear off screen
-margin = 0
+margin = 500
 
 
 class lidarReaderThread(threading.Thread):
@@ -166,26 +167,27 @@ def lidar_scanner():
                 # --- OPENCV Viz ---
                 # Show lidar points
                 # Use for local lidar debug
-                img = np.zeros((900,1600,3), np.uint8)
-                for point in user_points_np:
-                    img = cv2.circle(img, point, 4, (255,255,255), 1)                
-                img = cv2.ellipse(img, ellipse, (0,255,0), 2)
-                cv2.imshow("frame", img)
-                if cv2.waitKey(1) == ord('q'):
-                    stop_event.set()                    
+                # img = np.zeros((900,1600,3), np.uint8)
+                # for point in user_points_np:
+                #     point_tp = (point[0], point[1])
+                #     img = cv2.circle(img, point_tp, 4, (255,255,255), 1)                
+                # img = cv2.ellipse(img, ellipse, (0,255,0), 2)
+                # cv2.imshow("frame", img)
+                # if cv2.waitKey(1) == ord('q'):
+                #     stop_event.set()                    
                 # ---- END of Open CV viz ----
 
                 # User position and orienation estimation via NP:
-                # x_points = np.array([p[0] for p in user_points])
-                # y_points = np.array([p[1] for p in user_points])                                            
-                # avg_x = np.mean(x_points) #mean([p[0] for p in user_points])
-                # avg_y = np.mean(y_points) #mean([p[1] for p in user_points])
-                #user_angle =  math.atan(np.polyfit(x_points, y_points, 1)[0])
+                x_points = np.array([p[0] for p in user_points])
+                y_points = np.array([p[1] for p in user_points])                                            
+                avg_x = np.mean(x_points) #mean([p[0] for p in user_points])
+                avg_y = np.mean(y_points) #mean([p[1] for p in user_points])
+                user_angle =  math.atan(np.polyfit(x_points, y_points, 1)[0])
                 
                 # get user position and orientaion via ellipse   
-                avg_x = ellipse[0][0]
-                avg_y = ellipse[0][1]
-                user_angle = math.radians(ellipse[2])
+                # avg_x = ellipse[0][0]
+                # avg_y = ellipse[0][1]
+                # user_angle = math.radians(ellipse[2])
 
                 sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
 
