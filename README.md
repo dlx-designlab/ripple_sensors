@@ -1,6 +1,6 @@
 # Ripple Sensors 📡
 
-A collection of scripts used to simulate and connect various sensors to the (Ripple Floor)[../ripple_js] system.  
+A collection of scripts used to simulate and connect various sensors to the [Ripple Floor](../ripple_js) system.  
 
 ### General Important Dependencies
  - `pip3 install python-socketio`
