@@ -23,3 +23,11 @@ Used to get data from an RFID card scanner, load the relevant data from the `pas
 - wmctrl: `apt-get install wmctrl` 
 - Python Dependencies: `pip3 install attrs wmctrl`
 
+## GPS Playback
+This python script can be used to playback `.gpx.` GPS recordings for user experiements and testing.
+```
+python gpsPlayback.py xml/kashiwa.gpx
+```
+
+### Dependencies
+- `pip install -r requirements.txt`
