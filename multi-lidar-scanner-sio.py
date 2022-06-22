@@ -19,25 +19,25 @@ sensors_config = [
     {
         "port": "/dev/ttyUSB0",
         "x": 670,
-        "y": -105,
-        "a": 180
+        "y": -270,
+        "a": 270
     },
     {  
         "port": "/dev/ttyUSB1",
         "x": 1355,
-        "y": 1020,
-        "a": 0
+        "y": 1060,
+        "a": 270
     },
     {   
         "port": "/dev/ttyUSB2",
         "x": 0,
-        "y": 1020,
-        "a": 0
-    }    
+        "y": 1060,
+        "a": 90
+    }  
 ]
 
 # area of interes (actual screen/step-area size in mm) coordinates
-aoi_coordinates = ((0,0),(1355,905))
+aoi_coordinates = ((0,0),(1340,905))
 
 sio = socketio.Client()
 data_send_ferq = 0.2 #how often to send the data to the server (seconds)
@@ -78,6 +78,7 @@ class lidarReaderThread(threading.Thread):
         self.lidar.set_motor_pwm(500)    
         time.sleep(2)
 
+
     def run(self):
         
         global sio
@@ -86,30 +87,13 @@ class lidarReaderThread(threading.Thread):
 
         last_angle = 0
         for count, scan in enumerate(scan_generator()):
-            scan_angle = round(scan.angle)
-            if scan_angle < 360:
-                new_point_x = self.sensor_pos_x + scan.distance * math.sin(math.radians(scan.angle + self.sensor_rotation))
-                new_point_y = self.sensor_pos_y - scan.distance * math.cos(math.radians(scan.angle + self.sensor_rotation))
-                self.points[scan_angle][0] = new_point_x
-                self.points[scan_angle][1] = new_point_y
-
-            # TODO: sort skipped angles points
-            # else:
-            #     self.points = [[0]*2 for i in range(360)] 
-
-            # check for skipped scan angles an reset clear the array data for those angles.
-            # skipped_angles = scan_angle - last_angle
-            # if skipped_angles > 1:
-            #     # print(f" {skipped_angles} ")
-            #     for i in range(1, skipped_angles-1):
-            #         if last_angle + i < 360:
-            #             self.points[last_angle+i][0] = self.sensor_pos_x
-            #             self.points[last_angle+i][1] = self.sensor_pos_y
-            last_angle = scan_angle
-
-            # print(self.points)
-            # print(scan)            
-            # print(self.sensor_port, count, scan)
+            
+            # Get data from sensor (angle + dist) and convert to X,Y
+            new_point_x = self.sensor_pos_x + scan.distance * math.sin(math.radians(scan.angle + self.sensor_rotation))
+            new_point_y = self.sensor_pos_y - scan.distance * math.cos(math.radians(scan.angle + self.sensor_rotation))
+            
+            # TODO: the bellow solution results in lidar points ghosting which works but might need solving.
+            self.points[count % len(self.points)] = [new_point_x, new_point_y]  
 
             if self.stop_event.is_set():
                 break
@@ -126,6 +110,7 @@ def lidar_scanner():
 
     # event to stop the lidar threads 
     stop_event = threading.Event()
+    prev_frame_points = np.array([], dtype=int)
     
     # Init the LIDAR sensors scan
     lidar_sensors_threads = []
@@ -149,48 +134,75 @@ def lidar_scanner():
             user_points = []
             
             for sensor_thread in lidar_sensors_threads:
-                for i in range(360):
-                    if (sensor_thread.points[i][0] > aoi_coordinates[0][0] and 
-                        sensor_thread.points[i][1] > aoi_coordinates[0][1] and 
-                        sensor_thread.points[i][0] < aoi_coordinates[1][0] and
-                        sensor_thread.points[i][1] < aoi_coordinates[1][1] ):
+                for point in sensor_thread.points:
+                    if (point[0] > aoi_coordinates[0][0] and 
+                        point[1] > aoi_coordinates[0][1] and 
+                        point[0] < aoi_coordinates[1][0] and
+                        point[1] < aoi_coordinates[1][1] ):
                         
-                        user_points.append(sensor_thread.points[i])
-
+                        user_points.append(point)
+            
             if len(user_points) > 6:
                 
-                #Fit an ellipse around the used points to estimate position and orientation
                 user_points_np = np.array(user_points, dtype=int)
-                ellipse = cv2.fitEllipse(user_points_np)
-                # print(f"ellipse angle: {ellipse[2]}")                
+                
+                #Fit an ellipse around the used points to estimate position and orientation
+                ellipse = cv2.minAreaRect(user_points_np)
+                # print(f"ellipse angle: {ellipse[2]}")          
+
+
+                # User position and orienation estimation via NP:
+                x_points = np.array([p[0] for p in user_points])
+                y_points = np.array([p[1] for p in user_points])     
+
+                # avg_x = np.mean(x_points) #mean([p[0] for p in user_points])
+                # avg_y = np.mean(y_points) #mean([p[1] for p in user_points])
+                # user_angle =  math.atan(np.polyfit(x_points, y_points, 1)[0])
+                
+                # get user position and orientaion via ellipse   
+                avg_x = ellipse[0][0]
+                avg_y = ellipse[0][1]
+                user_angle = math.radians(ellipse[2])
+
+                sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
+      
                 
                 # --- OPENCV Viz ---
                 # Show lidar points
                 # Use for local lidar debug
-                # img = np.zeros((900,1600,3), np.uint8)
-                # for point in user_points_np:
-                #     point_tp = (point[0], point[1])
-                #     img = cv2.circle(img, point_tp, 4, (255,255,255), 1)                
-                # img = cv2.ellipse(img, ellipse, (0,255,0), 2)
-                # cv2.imshow("frame", img)
-                # if cv2.waitKey(1) == ord('q'):
-                #     stop_event.set()                    
-                # ---- END of Open CV viz ----
-
-                # User position and orienation estimation via NP:
-                x_points = np.array([p[0] for p in user_points])
-                y_points = np.array([p[1] for p in user_points])                                            
-                avg_x = np.mean(x_points) #mean([p[0] for p in user_points])
-                avg_y = np.mean(y_points) #mean([p[1] for p in user_points])
-                user_angle =  math.atan(np.polyfit(x_points, y_points, 1)[0])
+                img = np.zeros((1100,1600,3), np.uint8)
                 
-                # get user position and orientaion via ellipse   
-                # avg_x = ellipse[0][0]
-                # avg_y = ellipse[0][1]
-                # user_angle = math.radians(ellipse[2])
+                img = cv2.rectangle(img, aoi_coordinates[0], aoi_coordinates[1], (0,0,255),1)
+                
+                for point in user_points_np:
+                    point_tp = (point[0], point[1])
+                    img = cv2.circle(img, point_tp, 4, (255,255,255), 1)                
 
-                sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
+                    # Show dead points
+                    # try:
+                    #     duplicates=(np.all(point==prev_frame_points, axis=1))
+                    #     for index in range(len(duplicates)):
+                    #         if duplicates[index]:
+                    #             point_tp = (prev_frame_points[index][0], prev_frame_points[index][1])
+                    #             img = cv2.circle(img, point_tp, 8, (0,0,255), 1)                            
+                    # except:
+                    #     pass
 
+                    int(avg_x) + 30 * math.cos(user_angle)
+                
+                # user position and orientation
+                img = cv2.circle(img, (int(avg_x), int(avg_y)), 8, (0,255,255), 4)
+                img = cv2.line(img, (int(avg_x), int(avg_y)), ( int(avg_x + 30 * math.cos(user_angle)), int(avg_y + 30 * math.sin(user_angle))), (0,255,255), 4)         
+
+
+                img = cv2.ellipse(img, ellipse, (0,255,0), 2)
+
+                cv2.imshow("frame", img)
+                if cv2.waitKey(1) == ord('q'):
+                    stop_event.set()                    
+                # ---- END of Open CV viz ----            
+            
+            # prev_frame_points = user_points_np
          
     except (KeyboardInterrupt, SystemExit):
         # stop data collection.
@@ -210,7 +222,6 @@ def my_message(data):
 def disconnect():
     # todo: disconnect lidar sensors : set thread event > stop_event.set()
     print('disconnected from server')
-
 
 
 if __name__ == "__main__":

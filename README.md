@@ -3,7 +3,9 @@
 A collection of scripts used to simulate and connect various sensors to the [Ripple Floor](https://github.com/dlx-designlab/ripple_js) system.  
 
 ### General Important Dependencies
+ - Python 3.7 and above
  - `pip3 install python-socketio`
+ - `pip3 install websockets`
 
 ## Multi Lidar Scanner SIO
 Used to get data from the LIDAR sensors and send it over via socketIO to the Ripple server  
