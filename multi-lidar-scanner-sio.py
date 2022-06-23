@@ -20,19 +20,22 @@ sensors_config = [
         "port": "/dev/ttyUSB0",
         "x": 670,
         "y": -270,
-        "a": 270
+        "a": 270,
+        "h": "high"
     },
     {  
         "port": "/dev/ttyUSB1",
         "x": 1355,
         "y": 1060,
-        "a": 270
+        "a": 270,
+        "h": "low"
     },
     {   
         "port": "/dev/ttyUSB2",
         "x": 0,
         "y": 1060,
-        "a": 90
+        "a": 90,
+        "h": "low"
     }  
 ]
 
@@ -40,7 +43,7 @@ sensors_config = [
 aoi_coordinates = ((0,0),(1340,905))
 
 sio = socketio.Client()
-data_send_ferq = 0.2 #how often to send the data to the server (seconds)
+data_send_ferq = 0.1 #how often to send the data to the server (seconds)
 
 # the scale is to convert real world dimentions to screen Pixels
 # to determine the scaling, set the margin to 0
@@ -55,7 +58,7 @@ margin = 500
 
 
 class lidarReaderThread(threading.Thread):
-    def __init__(self, sensor_port, pos_x, pos_y, pos_r, stop_event):
+    def __init__(self, sensor_port, pos_x, pos_y, pos_r, pos_h, stop_event):
         
         # init the thread
         threading.Thread.__init__(self)        
@@ -70,6 +73,7 @@ class lidarReaderThread(threading.Thread):
         self.sensor_pos_x = pos_x
         self.sensor_pos_y = pos_y
         self.sensor_rotation = pos_r
+        self.sensor_height = pos_h
 
         # inti LIDAR sensor
         self.sensor_port = sensor_port
@@ -115,7 +119,7 @@ def lidar_scanner():
     # Init the LIDAR sensors scan
     lidar_sensors_threads = []
     for sensor in sensors_config:        
-        new_thread  = lidarReaderThread(sensor["port"], sensor["x"], sensor["y"], sensor["a"], stop_event)
+        new_thread  = lidarReaderThread(sensor["port"], sensor["x"], sensor["y"], sensor["a"], sensor["h"] ,stop_event)
         lidar_sensors_threads.append(new_thread)
         lidar_sensors_threads[-1].start()
     
@@ -131,8 +135,9 @@ def lidar_scanner():
                 sio.emit('updatelidar', sensor_data)
 
             # Calculate user positions and send to socket
-            user_points = []
-            
+            user_leg_points = []
+            user_foot_points = []
+
             for sensor_thread in lidar_sensors_threads:
                 for point in sensor_thread.points:
                     if (point[0] > aoi_coordinates[0][0] and 
@@ -140,32 +145,43 @@ def lidar_scanner():
                         point[0] < aoi_coordinates[1][0] and
                         point[1] < aoi_coordinates[1][1] ):
                         
-                        user_points.append(point)
+                        if sensor_thread.sensor_height == "high":
+                            user_leg_points.append(point)
+                        else:
+                            user_foot_points.append(point)
+
             
-            if len(user_points) > 6:
-                
-                user_points_np = np.array(user_points, dtype=int)
-                
+            if len(user_leg_points) > 2 and len(user_foot_points) > 2:
+
+                user_leg_points_np = np.array(user_leg_points, dtype=int)
+                user_foot_points_np = np.array(user_foot_points, dtype=int)
+
                 #Fit an ellipse around the used points to estimate position and orientation
-                ellipse = cv2.minAreaRect(user_points_np)
+                foot_ellipse = cv2.minAreaRect(user_foot_points_np)
+                leg_ellipse = cv2.minAreaRect(user_leg_points_np)
                 # print(f"ellipse angle: {ellipse[2]}")          
 
 
                 # User position and orienation estimation via NP:
-                x_points = np.array([p[0] for p in user_points])
-                y_points = np.array([p[1] for p in user_points])     
+                # x_points = np.array([p[0] for p in user_points])
+                # y_points = np.array([p[1] for p in user_points])     
 
                 # avg_x = np.mean(x_points) #mean([p[0] for p in user_points])
                 # avg_y = np.mean(y_points) #mean([p[1] for p in user_points])
                 # user_angle =  math.atan(np.polyfit(x_points, y_points, 1)[0])
                 
                 # get user position and orientaion via ellipse   
-                avg_x = ellipse[0][0]
-                avg_y = ellipse[0][1]
-                user_angle = math.radians(ellipse[2])
+                avg_leg_x = leg_ellipse[0][0]
+                avg_leg_y = leg_ellipse[0][1]
+                avg_foot_x = foot_ellipse[0][0]
+                avg_foot_y = foot_ellipse[0][1]               
+                
+                avg_x = (avg_foot_x + avg_leg_x) / 2
+                avg_y = (avg_foot_y + avg_leg_y) / 2
 
+                user_angle = math.atan2(avg_foot_y-avg_leg_y, avg_foot_x-avg_leg_x) #math.radians(foot_ellipse[2])
+                
                 sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle }} )
-      
                 
                 # --- OPENCV Viz ---
                 # Show lidar points
@@ -174,10 +190,14 @@ def lidar_scanner():
                 
                 img = cv2.rectangle(img, aoi_coordinates[0], aoi_coordinates[1], (0,0,255),1)
                 
-                for point in user_points_np:
+                for point in user_leg_points_np:
                     point_tp = (point[0], point[1])
-                    img = cv2.circle(img, point_tp, 4, (255,255,255), 1)                
-
+                    img = cv2.circle(img, point_tp, 4, (52, 174, 235), 1)                
+                
+                for point in user_foot_points_np:
+                    point_tp = (point[0], point[1])
+                    img = cv2.circle(img, point_tp, 4, (218, 136, 227), 1) 
+                    
                     # Show dead points
                     # try:
                     #     duplicates=(np.all(point==prev_frame_points, axis=1))
@@ -187,15 +207,15 @@ def lidar_scanner():
                     #             img = cv2.circle(img, point_tp, 8, (0,0,255), 1)                            
                     # except:
                     #     pass
-
-                    int(avg_x) + 30 * math.cos(user_angle)
-                
+                    # 
+            
                 # user position and orientation
                 img = cv2.circle(img, (int(avg_x), int(avg_y)), 8, (0,255,255), 4)
-                img = cv2.line(img, (int(avg_x), int(avg_y)), ( int(avg_x + 30 * math.cos(user_angle)), int(avg_y + 30 * math.sin(user_angle))), (0,255,255), 4)         
+                img = cv2.line(img, (int(avg_x), int(avg_y)), ( int(avg_x + 40 * math.cos(user_angle)), int(avg_y + 30 * math.sin(user_angle))), (0,255,255), 4)         
 
-
-                img = cv2.ellipse(img, ellipse, (0,255,0), 2)
+                
+                img = cv2.ellipse(img, leg_ellipse, (52, 174, 235), 2)
+                img = cv2.ellipse(img, foot_ellipse, (218, 136, 227), 2)
 
                 cv2.imshow("frame", img)
                 if cv2.waitKey(1) == ord('q'):

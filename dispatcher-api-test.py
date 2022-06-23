@@ -5,28 +5,43 @@ import json
 import csv
 import requests
 
+# IMPORTANT:    Set the OS variabe in advance via "export DISPATCHER_API_KEY=<the_key>" to the Correct API Key
+#               And Adjust the variable below for the correct working environment DEV or PROD
+PRODUCTION_MODE = False
 
-# Get a token from https://dispatcher.jp/oapi/v1/tokens
-# IMPORTANT: Set the OS variabe in advance via "export DISPATCHER_API_KEY=<the_key>"
+if PRODUCTION_MODE:
+    print("!!! PRODUCTION Mode !!!")
+    #Dispatcher PRODUCTION Servers
+    token_server_url = "https://oapi.dispatcher.jp/v1/auth/token"
+    dispatcher_server_url = "wss://message.dispatcher.jp/oapi/v1/ws/vehicle/states"
+
+else:
+    print("@@@ DEVELOPMENT Mode @@@ ")
+    #Dispatcher DEV Servers
+    token_server_url = "https://oapi.dev.dispatcher.jp/v1/auth/token"
+    dispatcher_server_url = "wss://message.dev.dispatcher.jp/oapi/v1/ws/vehicle/states"
+
+# Get a token from https://oapi.dispatcher.jp/v1/auth/token
+print("Requesting token from the Dispatcher Server...")
 api_key = os.environ['DISPATCHER_API_KEY']
-url = "https://oapi.dev.dispatcher.jp/v1/auth/token"
 header = {"Authorization": f"Bearer {{{api_key}}}"}
-res = requests.get(url, headers=header).json()
+res = requests.get(token_server_url, headers=header).json()
 token = res['token']
-# print(res)
-# print(token)
+print(f"got response: {res}")
 
 
+print("Getting bus data...")
 async def get_bus_data():        
-    async with websockets.connect(f"wss://message.dev.dispatcher.jp/oapi/v1/ws/vehicle/states?access_token={token}") as websocket:
-        
+
+    async with websockets.connect(f"{dispatcher_server_url}?access_token={token}") as websocket:
+
         f = open('bus_locations_data.csv', 'w')
         csv_writer = csv.writer(f)
         csv_writer.writerow(['lat', 'lon'])
 
         try:
             while True:
-                # await websocket.send("Hello world!")
+                
                 message = await websocket.recv()
                 data = json.loads(message)
                 print(data)
@@ -39,7 +54,6 @@ async def get_bus_data():
         except KeyboardInterrupt:
             f.close()
             pass
-
 
 
 asyncio.run(get_bus_data())
