@@ -33,3 +33,10 @@ python gpsPlayback.py xml/kashiwa.gpx
 
 ### Dependencies
 - `pip install -r requirements.txt`
+
+
+## Boldly Dispatcher API Test
+Used to test Communcation with the NAVYA Busses Server Operated by Softbank Boldly  
+- You will need to get an API Key from (Production or Dev).  
+- You need to set an OS variabe in advance via `export DISPATCHER_API_KEY=the_api_key`
+- Python 3.7 and above is required
