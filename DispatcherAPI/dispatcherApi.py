@@ -12,8 +12,10 @@ import websockets
 api_key = os.environ['DISPATCHER_API_KEY']
 url = "https://oapi.dev.dispatcher.jp/v1/auth/token"
 header = {"Authorization": f"Bearer {{{api_key}}}"}
+print('Getting token.')
 res = requests.get(url, headers=header).json()
 token = res['token']
+print('Token received.')
 
 sio = socketio.Client()
 
