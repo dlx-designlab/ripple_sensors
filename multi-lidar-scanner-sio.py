@@ -18,36 +18,36 @@ import cv2
 sensors_config = [
     {
         "port": "/dev/ttyUSB0",
-        "x": 0,
-        "y": -270,
-        "a": 270,
+        "x": -50,
+        "y": -50,
+        "a": 180,
         "h": "high"
     },
-    {
-        "port": "/dev/ttyUSB1",
-        "x": 1355,
-        "y": -270,
-        "a": 90,
-        "h": "low"
-    },    
+    # {
+    #     "port": "/dev/ttyUSB1",
+    #     "x": 1230,
+    #     "y": -50,
+    #     "a": 90,
+    #     "h": "low"
+    # },    
     {  
-        "port": "/dev/ttyUSB2",
-        "x": 1355,
-        "y": 1060,
+        "port": "/dev/ttyUSB1",
+        "x": 1185,
+        "y": 730,
         "a": 270,
-        "h": "high"
-    },
-    {   
-        "port": "/dev/ttyUSB3",
-        "x": 0,
-        "y": 1060,
-        "a": 90,
         "h": "low"
-    }  
+    }#,
+    # {   
+    #     "port": "/dev/ttyUSB3",
+    #     "x": 0,
+    #     "y": 730,
+    #     "a": 90,
+    #     "h": "low"
+    # }  
 ]
 
 # area of interes (actual screen/step-area size in mm) coordinates
-aoi_coordinates = ((0,0),(1340,905))
+aoi_coordinates = ((0,0),(1185,660))
 
 sio = socketio.Client()
 data_send_ferq = 0.1 #how often to send the data to the server (seconds)
@@ -63,6 +63,7 @@ scale = 13.1
 # use this in combinaion with scale to show objects which would usually appear off screen
 margin = -20
 
+stop_event = threading.Event()
 
 class lidarReaderThread(threading.Thread):
     def __init__(self, sensor_port, pos_x, pos_y, pos_r, pos_h, stop_event):
@@ -83,44 +84,54 @@ class lidarReaderThread(threading.Thread):
         self.sensor_height = pos_h
 
         # inti LIDAR sensor
-        self.sensor_port = sensor_port
-        self.lidar = PyRPlidar()
-        self.lidar.connect(port=self.sensor_port, baudrate=115200, timeout=3)
-        self.lidar.set_motor_pwm(500)    
-        time.sleep(2)
+        try:
+            self.sensor_port = sensor_port
+            self.lidar = PyRPlidar()
+            self.lidar.connect(port=self.sensor_port, baudrate=115200, timeout=3)
+            self.lidar.set_motor_pwm(500)    
+            time.sleep(2)
+        except Exception as e:
+            print(f"Could not init the sensor on {self.sensor_port}... {e}")
 
 
     def run(self):
         
         global sio
-        scan_generator = self.lidar.force_scan()
-        print(f"LIDAR {self.sensor_port} is Scanning...")
+        try:
+            scan_generator = self.lidar.force_scan()
+            print(f"LIDAR {self.sensor_port} is Scanning...")
 
-        last_angle = 0
-        for count, scan in enumerate(scan_generator()):
-            
-            # Get data from sensor (angle + dist) and convert to X,Y
-            new_point_x = self.sensor_pos_x + scan.distance * math.sin(math.radians(scan.angle + self.sensor_rotation))
-            new_point_y = self.sensor_pos_y - scan.distance * math.cos(math.radians(scan.angle + self.sensor_rotation))
-            
-            # TODO: the bellow solution results in lidar points ghosting which works but might need solving.
-            self.points[count % len(self.points)] = [new_point_x, new_point_y]  
+            for count, scan in enumerate(scan_generator()):
+                
+                # Get data from sensor (angle + dist) and convert to X,Y
+                new_point_x = self.sensor_pos_x + scan.distance * math.sin(math.radians(scan.angle + self.sensor_rotation))
+                new_point_y = self.sensor_pos_y - scan.distance * math.cos(math.radians(scan.angle + self.sensor_rotation))
+                
+                # TODO: the bellow solution results in lidar points ghosting which works but might need solving.
+                self.points[count % len(self.points)] = [new_point_x, new_point_y]  
 
-            if self.stop_event.is_set():
-                break
+                if self.stop_event.is_set():
+                    break
 
+        except Exception as e:
+            print(f"SOMETHING WENT WRONG! ... {e}")
 
         print(f"Closing connetion to LIDAR sensor on {self.sensor_port}.")
 
-        self.lidar.stop()
-        self.lidar.set_motor_pwm(0)
-        self.lidar.disconnect()
+        try:
+            self.lidar.stop()
+            self.lidar.set_motor_pwm(0)
+            self.lidar.disconnect()
+
+        except Exception as e:
+            print(f"Could not gracefully close connection with sensor on {self.sensor_port}... {e}")
+
 
 
 def lidar_scanner():
 
     # event to stop the lidar threads 
-    stop_event = threading.Event()
+    global stop_event
     prev_frame_points = np.array([], dtype=int)
     
     # Init the LIDAR sensors scan
@@ -129,17 +140,16 @@ def lidar_scanner():
         new_thread  = lidarReaderThread(sensor["port"], sensor["x"], sensor["y"], sensor["a"], sensor["h"] ,stop_event)
         lidar_sensors_threads.append(new_thread)
         lidar_sensors_threads[-1].start()
-    
-    print("All sensors scanning! Press Ctrl-C to stop")
 
     try:
         while True:
             time.sleep(data_send_ferq)
 
             # send LIDAR data to the socket
-            # for sensor_thread in lidar_sensors_threads:
-            #     sensor_data = {"points": [[(p[0]+margin)/scale, (p[1]+margin)/scale] for p in sensor_thread.points], "id": sensor_thread.sensor_port}
-            #     sio.emit('updatelidar', sensor_data)
+            # TODO: Fix server Lag visualizing the points
+            for sensor_thread in lidar_sensors_threads:
+                sensor_data = {"points": [[(p[0]+margin)/scale, (p[1]+margin)/scale] for p in sensor_thread.points], "id": sensor_thread.sensor_port}
+                sio.emit('updatelidar', sensor_data)
 
             # Calculate user positions and send to socket
             user_leg_points = []
@@ -228,13 +238,20 @@ def lidar_scanner():
 
                 # if cv2.waitKey(1) == ord('q'):
                 #     stop_event.set()                    
-                # # ---- END of Open CV viz ----            
+                # ---- END of Open CV viz ----            
             
             # prev_frame_points = user_points_np
+            
+            if stop_event.is_set():
+                    break
          
     except (KeyboardInterrupt, SystemExit):
         # stop data collection.
-        stop_event.set()    
+        stop_event.set()
+    
+    except Exception as e:
+        print(f"Something went wrong... {e}")
+        stop_event.set()
 
 
 @sio.event
@@ -248,16 +265,22 @@ def my_message(data):
 
 @sio.event
 def disconnect():
-    # todo: disconnect lidar sensors : set thread event > stop_event.set()
+    stop_event.set()
     print('disconnected from server')
 
 
 if __name__ == "__main__":
     
     # setup socket io client
-    sio.connect('http://localhost:3000')
-    print("Connected to Ripple Server!")    
-    sio.emit("updatepassengerposition",{"id": 1,"position": {"x": 0, "y": 0}} )    
-    # sio.wait()
+    try:
+        sio.connect('https://rippleserver.herokuapp.com:443')
+        # sio.connect('http://0.0.0.0:3000')        
+    
+    except Exception as e:
+        print(f"SocketIO ConnectionError: {e}")
+    
+    else:
+        print("Connected to Ripple Server!")    
+        sio.emit("updatepassengerposition",{"id": 1,"position": {"x": 0, "y": 0}} )    
 
-    lidar_scanner()
+        lidar_scanner()    
