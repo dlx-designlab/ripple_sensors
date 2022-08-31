@@ -7,7 +7,7 @@ import math
 from statistics import mean
 import numpy as np
 import cv2
-from kalmanfilter import KalmanFilter
+from kalmanfilter import KalmanFilter, KalmanFilter_1D
 
 # list of ports to which the lidar sensors are conneted
 # RPILIDAR Ports:
@@ -138,7 +138,7 @@ def lidar_scanner():
 
     # Trajectory prediction for user position smoothing
     kf = KalmanFilter()
-    # kf_1d = KalmanFilter_1D()
+    kf_1d = KalmanFilter_1D()
     
     # Init the LIDAR sensors scan
     lidar_sensors_threads = []
@@ -238,11 +238,11 @@ def lidar_scanner():
 
                 # Smoothed User Position
                 smooth_pos = kf.predict(int(avg_x), int(avg_y))
-                # smooth_rot = kf_1d.predict(user_angle)
-                img = cv2.circle(img, smooth_pos, 20, (255,255,255), 2)
-                # img = cv2.line(img, smooth_pos, ( int(avg_x + 40 * math.cos(user_angle)), int(avg_y + 30 * math.sin(user_angle))), (255,255,255), 8)
-
+                smooth_rot = kf_1d.predict(user_angle)
                 
+                img = cv2.circle(img, smooth_pos, 20, (255,255,255), 2)
+                img = cv2.line(img, smooth_pos, ( int(smooth_pos[0] + 40 * math.cos(smooth_rot)), int(smooth_pos[1] + 30 * math.sin(smooth_rot))), (255,255,255), 8)
+
                 img = cv2.ellipse(img, leg_ellipse, (52, 174, 235), 2)
                 img = cv2.ellipse(img, foot_ellipse, (218, 136, 227), 2)
 
