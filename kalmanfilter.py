@@ -12,7 +12,7 @@ class KalmanFilter:
     kf.transitionMatrix = np.array([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32)
     
     # Qk
-    kf.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.001
+    kf.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.0001
     # Rk 
     # kf.measurementNoiseCov = np.array([[1,0],[0,1]],np.float32) * 0.0001
 
@@ -30,7 +30,7 @@ class KalmanFilter_1D:
     
     kf.measurementMatrix = np.array([[1, 0]], np.float32)
     kf.transitionMatrix = np.array([[1, 1], [0, 1]], np.float32)
-    kf.processNoiseCov = np.array([[1,0],[0,1]],np.float32) * 0.0001
+    kf.processNoiseCov = np.array([[1,0],[0,1]],np.float32) * 0.001
     # kf.measurementNoiseCov = np.array([[1]],np.float32) * 0.00003    
 
     def predict(self, val):

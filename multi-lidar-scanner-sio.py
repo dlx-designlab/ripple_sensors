@@ -203,8 +203,17 @@ def lidar_scanner():
                 avg_y = (avg_foot_y + avg_leg_y) / 2
 
                 user_angle = math.atan2(avg_foot_y-avg_leg_y, avg_foot_x-avg_leg_x) #math.radians(foot_ellipse[2])
-                
-                sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle+1.57 }} )
+
+                # Smooth User Position using Kalman filter
+                smooth_pos = kf.predict(int(avg_x), int(avg_y))
+                smooth_posx=smooth_pos[0]
+                smooth_posy=smooth_pos[1]                
+                smooth_rot = float(kf_1d.predict(user_angle))
+
+                # Send raw position data to the server
+                # sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle+1.57 }} )                
+                # Send smoothed position data to the server
+                sio.emit("updatepassenger",{"id": 1,"position": {"x": (smooth_posx + margin) / scale, "y": (smooth_posy + margin) / scale, "rotation": smooth_rot+1.57 }} )
                 
                 # --- OPENCV Viz ---
                 # Show lidar points - Use for local lidar debug
@@ -234,14 +243,10 @@ def lidar_scanner():
                 # user position and orientation
                 img = cv2.circle(img, (int(avg_x), int(avg_y)), 8, (0,255,255), 4)
                 img = cv2.line(img, (int(avg_x), int(avg_y)), ( int(avg_x + 40 * math.cos(user_angle)), int(avg_y + 30 * math.sin(user_angle))), (0,255,255), 4)         
-
-
-                # Smoothed User Position
-                smooth_pos = kf.predict(int(avg_x), int(avg_y))
-                smooth_rot = kf_1d.predict(user_angle)
                 
-                img = cv2.circle(img, smooth_pos, 20, (255,255,255), 2)
-                img = cv2.line(img, smooth_pos, ( int(smooth_pos[0] + 40 * math.cos(smooth_rot)), int(smooth_pos[1] + 30 * math.sin(smooth_rot))), (255,255,255), 8)
+                # Smoothed Position vis
+                img = cv2.circle(img, (smooth_posx, smooth_posy), 20, (255,255,255), 2)
+                img = cv2.line(img, (smooth_posx, smooth_posy), ( int(smooth_posx + 40 * math.cos(smooth_rot)), int(smooth_posy + 30 * math.sin(smooth_rot))), (255,255,255), 8)
 
                 img = cv2.ellipse(img, leg_ellipse, (52, 174, 235), 2)
                 img = cv2.ellipse(img, foot_ellipse, (218, 136, 227), 2)
