@@ -3,7 +3,8 @@ import socket
 
 ## Here we define the UDP IP address as well as the port number that we have
 ## already defined in the client python script.
-# The ipAdress if of this host MAchine - Input the samr adres and port in the simulator settings
+# The ipAdress of the host Machine (which is recording the data, not the Simulator)
+# Input the same adres and port in the simulator settings
 UDP_IP_ADDRESS = "157.82.160.46"
 UDP_PORT_NO = 4001
 
@@ -19,7 +20,7 @@ print("server online!")
 
 while True:
     data, addr = serverSock.recvfrom(1024)
-    data_list = list(data)
+    data_list = (data.decode("utf-8")).split(',')
     
     print (f"Raw Data: {data}")    
-    # print (f"List: {data_list}")
+    print (f"List: {data_list}")    
