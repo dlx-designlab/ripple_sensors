@@ -5,7 +5,6 @@ import random
 import webbrowser
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 thread = None
 
