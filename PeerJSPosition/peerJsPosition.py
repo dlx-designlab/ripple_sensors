@@ -11,7 +11,7 @@ thread = None
 
 def background_thread():
     while True:
-        socketio.emit('message', {
+        socketio.emit('updatepassenger', {
             'id': 1,
             'position': {
                 'x': random.randrange(100),
