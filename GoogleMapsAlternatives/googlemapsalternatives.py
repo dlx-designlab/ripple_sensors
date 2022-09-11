@@ -2,7 +2,7 @@ import googlemaps
 import numpy as np
 import socketio
 
-gmaps = googlemaps.Client(key='AIzaSyDZ-f76t7NJILMGk6OAzIfXh12HlcuEzc4')
+gmaps = googlemaps.Client(key='AIzaSyDZ-AIzaSyD5f5RXCwydSYZuz2T9Rjr_Sy76BuQqR_s')
 
 sio = socketio.Client()
 
