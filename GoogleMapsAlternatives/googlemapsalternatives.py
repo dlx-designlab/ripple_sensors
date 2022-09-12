@@ -2,7 +2,7 @@ import googlemaps
 import numpy as np
 import socketio
 
-gmaps = googlemaps.Client(key='AIzaSyDZ-AIzaSyD5f5RXCwydSYZuz2T9Rjr_Sy76BuQqR_s')
+gmaps = googlemaps.Client(key='')
 
 sio = socketio.Client()
 
@@ -45,6 +45,8 @@ def on_state(state):
 
     print('Updating state.')
     sio.emit('updatealternatives', alternatives)
-
+    
+    print(f'\n ### \n Alternatives matrix is updated on the server only! For local testing, copy-paste this data: \n {alternatives} \n')
+    
     print('Update completed, disconnecting.')
     sio.disconnect()

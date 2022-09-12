@@ -130,7 +130,6 @@ class lidarReaderThread(threading.Thread):
             print(f"Could not gracefully close connection with sensor on {self.sensor_port}... {e}")
 
 
-
 def lidar_scanner():
 
     # event to stop the lidar threads 
@@ -212,10 +211,10 @@ def lidar_scanner():
                 smooth_rot = float(kf_1d.predict(user_angle))
 
                 # Send raw position data to the server
-                # sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle+1.57 }} )                
+                sio.emit("updatepassenger",{"id": 1,"position": {"x": (avg_x + margin) / scale, "y": (avg_y + margin) / scale, "rotation": user_angle+1.57 }} )                
 
                 # Send smoothed position data to the server
-                sio.emit("updatepassenger",{"id": 1,"position": {"x": (smooth_posx + margin) / scale, "y": (smooth_posy + margin) / scale, "rotation": smooth_rot+1.57 }} )
+                # sio.emit("updatepassenger",{"id": 1,"position": {"x": (smooth_posx + margin) / scale, "y": (smooth_posy + margin) / scale, "rotation": smooth_rot+1.57 }} )
                 
                 # --- OPENCV Viz ---
                 # Show lidar points - Use for local lidar debug
@@ -293,8 +292,8 @@ if __name__ == "__main__":
     
     # setup socket io client
     try:
-        sio.connect('https://server.rippple.link:443')        
-        # sio.connect('https://rippleserver.herokuapp.com:443')
+        # sio.connect('https://server.rippple.link:443')        
+        sio.connect('https://rippleserver.herokuapp.com:443')
         # sio.connect('http://0.0.0.0:3000')        
     
     except Exception as e:
