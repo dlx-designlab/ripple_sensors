@@ -1,0 +1,5 @@
+googlemaps
+numpy
+python-socketio
+python-socketio[client]
+requests
