@@ -19,32 +19,32 @@ from kalmanfilter import KalmanFilter_2d, KalmanFilter_1d
 sensors_config = [
     {
         "port": "/dev/ttyUSB0",
-        "x": 592,
-        "y": -310,
-        "a": 180,
+        "x": 0,
+        "y": -270,
+        "a": 270,
         "h": "high"
     },
-    # {
-    #     "port": "/dev/ttyUSB1",
-    #     "x": 1230,
-    #     "y": -50,
-    #     "a": 90,
-    #     "h": "low"
-    # },    
-    {  
+    {
         "port": "/dev/ttyUSB1",
-        "x": 592,
-        "y": 720,
-        "a": 0,
+        "x": 1355,
+        "y": -270,
+        "a": 90,
         "h": "low"
-    }#,
-    # {   
-    #     "port": "/dev/ttyUSB3",
-    #     "x": 0,
-    #     "y": 730,
-    #     "a": 90,
-    #     "h": "low"
-    # }  
+    },    
+    {  
+        "port": "/dev/ttyUSB2",
+        "x": 1355,
+        "y": 1060,
+        "a": 270,
+        "h": "high"
+    },
+    {   
+        "port": "/dev/ttyUSB3",
+        "x": 0,
+        "y": 1060,
+        "a": 90,
+        "h": "low"
+    }  
 ]
 
 # area of interes (actual screen/step-area size in mm) coordinates
